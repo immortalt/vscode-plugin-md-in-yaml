@@ -1,0 +1,30 @@
+Title: This is a YAML Document
+Level 1:
+  Level 2:
+    Level 3 item 1: text
+    Level 3 item 2:
+      YAML array:
+        - item 1
+        - item 2
+  Level 2 item 2:
+    - Point 1
+    - Point 2
+Content: |
+  This is a markdown document.
+  # Title 1
+  ## Title 2
+  ### Title 3
+  #### Title 4
+  ##### Title 5
+  - Level 1:
+    - Level 2:
+      - Level 3 item 1: text
+      - Level 3 item 2:
+        - YAML array:
+          - item 1
+          - item 2
+    - Level 2 item 2:
+      - Point 1
+      - Point 2
+
+
