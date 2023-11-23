@@ -1,15 +1,18 @@
 {
   "name": "vscode-plugin-yaml-preview",
-  "displayName": "vscode-plugin-yaml-preview",
+  "displayName": "YAML Document Preview",
   "description": "A plugin for previewing YAML files as rendered documents, and for previewing Markdown in YAML.",
   "repository": "https://github.com/immortalt/vscode-plugin-yaml-preview.git",
-  "version": "0.0.1",
+  "version": "0.0.3",
+  "icon": "logo.png",
   "engines": {
     "vscode": "^1.84.0"
   },
   "categories": [
+    "Programming Languages",
     "Other"
   ],
+  "publisher": "vscode-plugin-yaml-preview",
   "activationEvents": [
     "onLanguage:yaml"
   ],
