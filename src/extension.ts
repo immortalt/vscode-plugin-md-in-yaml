@@ -104,6 +104,7 @@ function getWebviewContent(content: any, md: MarkdownIt): string {
   </style>
   `;
   const body = `<ul>${renderObject(content, md)}</ul>`;
+  console.log(body);
   return `<html><head>${style}</head><body>${body}</body></html>`;
 }
 
@@ -115,23 +116,41 @@ function renderObject(
   let htmlContent = "";
   if (Array.isArray(obj)) {
     htmlContent += `<ul>${obj
-      .map((item) => `<li>${renderObject(item, md, false)}</li>`)
+      .map((item) => {
+        if (typeof item === "object" && !Array.isArray(item)) {
+          // Handle object type array elements
+          return Object.entries(item)
+            .map(([key, value]) => {
+              const valueHtml = renderObject(value, md, false);
+              // If the value is an array, do not nest <ul>, directly use valueHtml
+              if (Array.isArray(value)) {
+                return `<li>${key}: ${valueHtml}</li>`;
+              } else {
+                return `<li>${key}:<ul>${valueHtml}</ul></li>`;
+              }
+            })
+            .join("");
+        } else {
+          // Handle non-object type array elements
+          return `<li>${renderObject(item, md, false)}</li>`;
+        }
+      })
       .join("")}</ul>`;
   } else if (typeof obj === "object" && obj !== null) {
+    // Handle object types
     let innerContent = Object.entries(obj)
       .filter(([key]) => !(isRoot && key === "Title"))
       .map(([key, value]) => {
-        const valueHtml =
-          typeof value === "string"
-            ? md.render(value)
-            : renderObject(value, md, false);
-        return `<li>${key} ${valueHtml}</li>`;
+        const valueHtml = renderObject(value, md, false);
+        return `<li>${key}: ${valueHtml}</li>`;
       })
       .join("");
     htmlContent = isRoot ? innerContent : `<ul>${innerContent}</ul>`;
   } else if (typeof obj === "string") {
+    // Handle string types
     htmlContent += md.render(obj);
   } else {
+    // Handle other types
     htmlContent += obj.toString();
   }
   if (isRoot && obj && typeof obj["Title"] === "string") {
