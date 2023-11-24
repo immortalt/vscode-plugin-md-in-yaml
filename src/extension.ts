@@ -126,21 +126,36 @@ function updateWebviewContent(
 function getWebviewContent(content: any, md: MarkdownIt): string {
   const style = `
   <style>
-      body { font-family: Arial, sans-serif; line-height: 1.2; }
-      dl { margin: 2px 0; }
+      body { font-family: Arial, sans-serif; line-height: 1.1; }
+      dl { margin: 4px 0; }
       dt { font-weight: bold; }
-      dd { margin: 1px 0 2px 16px; }
-      ul, ol { margin: 2px 0 2px 8px; padding-left: 20px; }
-      li { margin: 0.5px 0; }
+      dd { margin: 1px 0 4px 16px; }
+      ul, ol { margin: 4px 0 4px 8px; padding-left: 20px; }
+      li { margin: 2px 0; }
       p { margin: 4px 0; }
       a { margin: 4px 0; }
-      h1, h2, h3, h4, h5 { margin: 4px 0; }
+      h1, h2, h3, h4, h5 { margin: 4px 0; color: #007acc; }
       table {
         border-collapse: collapse;
       }
       td, th {
           border: 1px solid; 
           padding: 8px;
+      }
+      h1 {
+        font-size: 23px;
+      }
+      h2 {
+          font-size: 20px;
+      }
+      h3 {
+          font-size: 17px;
+      }
+      h4 {
+          font-size: 14px;
+      }
+      h5 {
+          font-size: 12px;
       }
   </style>
   `;
@@ -161,6 +176,7 @@ function getWebviewContent(content: any, md: MarkdownIt): string {
 function renderObject(
   node: any,
   md: MarkdownIt,
+  depth: number = 0,
   isRoot: boolean = true
 ): string {
   let htmlContent = "";
@@ -170,9 +186,9 @@ function renderObject(
   }
 
   if (node instanceof YAMLSeq) {
-    htmlContent += renderArray(node.items, md);
+    htmlContent += renderArray(node.items, md, depth + 1);
   } else if (node instanceof YAMLMap) {
-    htmlContent += renderObjectProperties(node, md, isRoot);
+    htmlContent += renderObjectProperties(node, md, depth, isRoot);
   } else if (node instanceof Scalar) {
     htmlContent += node ? md.render(node.value) : "";
   } else {
@@ -182,21 +198,27 @@ function renderObject(
   return htmlContent;
 }
 
-function renderArray(objArray: any[], md: MarkdownIt): string {
-  return `<ul>${objArray.map((item) => renderItem(item, md)).join("")}</ul>`;
+function renderArray(objArray: any[], md: MarkdownIt, depth: number): string {
+  return `<ul>${objArray
+    .map((item) => renderItem(item, md, depth))
+    .join("")}</ul>`;
 }
 
-function renderItem(item: any, md: MarkdownIt): string {
+function renderItem(item: any, md: MarkdownIt, depth: number): string {
   if (item instanceof YAMLMap) {
-    return renderArrayObjectItem(item, md);
+    return renderArrayObjectItem(item, md, depth);
   } else {
-    return `<li>${renderObject(item, md, false)}</li>`;
+    return `<li>${renderObject(item, md, depth)}</li>`;
   }
 }
 
-function renderArrayObjectItem(map: YAMLMap, md: MarkdownIt): string {
+function renderArrayObjectItem(
+  map: YAMLMap,
+  md: MarkdownIt,
+  depth: number
+): string {
   let innerContent = map.items
-    .map((pair) => renderObjectEntry(pair, md))
+    .map((pair) => renderObjectEntry(pair, md, depth))
     .join("");
   return innerContent;
 }
@@ -204,10 +226,11 @@ function renderArrayObjectItem(map: YAMLMap, md: MarkdownIt): string {
 function renderObjectProperties(
   map: YAMLMap,
   md: MarkdownIt,
+  depth: number,
   isRoot: boolean
 ): string {
   let innerContent = map.items
-    .map((pair) => renderObjectEntry(pair, md))
+    .map((pair) => renderObjectEntry(pair, md, depth))
     .join("");
 
   return isRoot ? innerContent : `<ul>${innerContent}</ul>`;
@@ -215,11 +238,17 @@ function renderObjectProperties(
 
 function renderObjectEntry(
   pair: Pair<unknown, unknown>,
-  md: MarkdownIt
+  md: MarkdownIt,
+  depth: number
 ): string {
   const keyString = String(pair.key);
-  const valueHtml = renderObject(pair.value, md, false);
-  return `<li>${keyString}: ${valueHtml}</li>`;
+  const valueHtml = renderObject(pair.value, md, depth + 1, false);
+
+  let headerTag = `h${Math.min(1 + depth, 5)}`;
+  let wrappedKey =
+    depth < 5 ? `<${headerTag}>${keyString}</${headerTag}>` : keyString;
+
+  return `<li>${wrappedKey} ${valueHtml}</li>`;
 }
 
 // This method is called when your extension is deactivated
