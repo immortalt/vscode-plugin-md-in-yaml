@@ -1,7 +1,8 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import * as yaml from "js-yaml";
+import * as yaml from "yaml";
+import { Document, YAMLMap, YAMLSeq, Pair, Scalar } from "yaml";
 import MarkdownIt from "markdown-it";
 import * as path from "path";
 
@@ -113,7 +114,7 @@ function updateWebviewContent(
   if (document.languageId === "yaml") {
     try {
       const content = document.getText();
-      const parsedContent = yaml.load(content);
+      const parsedContent = yaml.parseDocument(content);
       panel.webview.html = getWebviewContent(parsedContent, md);
       panel.title = `Preview ${fileName}`;
     } catch (e: any) {
@@ -125,20 +126,42 @@ function updateWebviewContent(
 function getWebviewContent(content: any, md: MarkdownIt): string {
   const style = `
   <style>
-      body { font-family: Arial, sans-serif; line-height: 1.2; }
-      dl { margin: 2px 0; }
+      body { font-family: Arial, sans-serif; line-height: 1.1; }
+      dl { margin: 4px 0; }
       dt { font-weight: bold; }
-      dd { margin: 1px 0 2px 16px; }
-      ul, ol { margin: 2px 0 2px 8px; padding-left: 20px; }
-      li { margin: 0.5px 0; }
-      p { margin: 0; margin-top: 4px; }
-      h1, h2, h3, h4, h5 { margin: 0; margin-top: 4px; margin-bottom: 4px; }
+      dd { margin: 1px 0 4px 16px; }
+      ul, ol { margin: 4px 0 4px 8px; padding-left: 20px; }
+      li { margin: 2px 0; }
+      p { margin: 4px 0; }
+      a { margin: 4px 0; }
+      h1, h2, h3, h4, h5 { margin: 4px 0; color: #007acc; }
+      table {
+        border-collapse: collapse;
+      }
+      td, th {
+          border: 1px solid; 
+          padding: 8px;
+      }
+      h1 {
+        font-size: 23px;
+      }
+      h2 {
+          font-size: 20px;
+      }
+      h3 {
+          font-size: 17px;
+      }
+      h4 {
+          font-size: 14px;
+      }
+      h5 {
+          font-size: 12px;
+      }
   </style>
   `;
   const script = `<script>
   // Listen for messages sent from the VS Code extension
   window.addEventListener('message', event => {
-    console.log(event);
     const message = event.data;
     // Adjust the scroll position of the preview page based on the received scroll percentage
     if (message.type === 'scroll') {
@@ -147,59 +170,85 @@ function getWebviewContent(content: any, md: MarkdownIt): string {
   });
 </script>`;
   const body = `<ul>${renderObject(content, md)}</ul>`;
-  console.log(body);
   return `<html><head>${script}${style}</head><body>${body}</body></html>`;
 }
 
 function renderObject(
-  obj: any,
+  node: any,
   md: MarkdownIt,
+  depth: number = 0,
   isRoot: boolean = true
 ): string {
   let htmlContent = "";
-  if (Array.isArray(obj)) {
-    htmlContent += `<ul>${obj
-      .map((item) => {
-        if (typeof item === "object" && !Array.isArray(item)) {
-          // Handle object type array elements
-          return Object.entries(item)
-            .map(([key, value]) => {
-              const valueHtml = renderObject(value, md, false);
-              // If the value is an array, do not nest <ul>, directly use valueHtml
-              if (Array.isArray(value)) {
-                return `<li>${key}: ${valueHtml}</li>`;
-              } else {
-                return `<li>${key}:<ul>${valueHtml}</ul></li>`;
-              }
-            })
-            .join("");
-        } else {
-          // Handle non-object type array elements
-          return `<li>${renderObject(item, md, false)}</li>`;
-        }
-      })
-      .join("")}</ul>`;
-  } else if (typeof obj === "object" && obj !== null) {
-    // Handle object types
-    let innerContent = Object.entries(obj)
-      .filter(([key]) => !(isRoot && key === "Title"))
-      .map(([key, value]) => {
-        const valueHtml = renderObject(value, md, false);
-        return `<li>${key}: ${valueHtml}</li>`;
-      })
-      .join("");
-    htmlContent = isRoot ? innerContent : `<ul>${innerContent}</ul>`;
-  } else if (typeof obj === "string") {
-    // Handle string types
-    htmlContent += md.render(obj);
+
+  if (node instanceof Document) {
+    node = node.contents;
+  }
+
+  if (node instanceof YAMLSeq) {
+    htmlContent += renderArray(node.items, md, depth + 1);
+  } else if (node instanceof YAMLMap) {
+    htmlContent += renderObjectProperties(node, md, depth, isRoot);
+  } else if (node instanceof Scalar) {
+    htmlContent += node ? md.render(node.value) : "";
   } else {
-    // Handle other types
-    htmlContent += obj.toString();
+    htmlContent += node.toString();
   }
-  if (isRoot && obj && typeof obj["Title"] === "string") {
-    htmlContent = `<h1>${md.render(obj["Title"])}</h1>` + htmlContent;
-  }
+
   return htmlContent;
+}
+
+function renderArray(objArray: any[], md: MarkdownIt, depth: number): string {
+  return `<ul>${objArray
+    .map((item) => renderItem(item, md, depth))
+    .join("")}</ul>`;
+}
+
+function renderItem(item: any, md: MarkdownIt, depth: number): string {
+  if (item instanceof YAMLMap) {
+    return renderArrayObjectItem(item, md, depth);
+  } else {
+    return `<li>${renderObject(item, md, depth)}</li>`;
+  }
+}
+
+function renderArrayObjectItem(
+  map: YAMLMap,
+  md: MarkdownIt,
+  depth: number
+): string {
+  let innerContent = map.items
+    .map((pair) => renderObjectEntry(pair, md, depth))
+    .join("");
+  return innerContent;
+}
+
+function renderObjectProperties(
+  map: YAMLMap,
+  md: MarkdownIt,
+  depth: number,
+  isRoot: boolean
+): string {
+  let innerContent = map.items
+    .map((pair) => renderObjectEntry(pair, md, depth))
+    .join("");
+
+  return isRoot ? innerContent : `<ul>${innerContent}</ul>`;
+}
+
+function renderObjectEntry(
+  pair: Pair<unknown, unknown>,
+  md: MarkdownIt,
+  depth: number
+): string {
+  const keyString = String(pair.key);
+  const valueHtml = renderObject(pair.value, md, depth + 1, false);
+
+  let headerTag = `h${Math.min(1 + depth, 5)}`;
+  let wrappedKey =
+    depth < 5 ? `<${headerTag}>${keyString}</${headerTag}>` : keyString;
+
+  return `<li>${wrappedKey} ${valueHtml}</li>`;
 }
 
 // This method is called when your extension is deactivated
