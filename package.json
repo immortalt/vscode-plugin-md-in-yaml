@@ -62,9 +62,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@types/js-yaml": "^4.0.9",
     "@types/markdown-it": "^13.0.7",
-    "js-yaml": "^4.1.0",
     "markdown-it": "^13.0.2"
   }
 }

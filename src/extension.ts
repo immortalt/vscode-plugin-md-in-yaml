@@ -1,7 +1,8 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import * as yaml from "js-yaml";
+import * as yaml from "yaml";
+import { Document, YAMLMap, YAMLSeq, Pair, Scalar } from "yaml";
 import MarkdownIt from "markdown-it";
 import * as path from "path";
 
@@ -113,7 +114,7 @@ function updateWebviewContent(
   if (document.languageId === "yaml") {
     try {
       const content = document.getText();
-      const parsedContent = yaml.load(content);
+      const parsedContent = yaml.parseDocument(content);
       panel.webview.html = getWebviewContent(parsedContent, md);
       panel.title = `Preview ${fileName}`;
     } catch (e: any) {
@@ -151,75 +152,68 @@ function getWebviewContent(content: any, md: MarkdownIt): string {
   return `<html><head>${script}${style}</head><body>${body}</body></html>`;
 }
 
-// Renders an object to an HTML string.
 function renderObject(
-  obj: any,
+  node: any,
   md: MarkdownIt,
   isRoot: boolean = true
 ): string {
   let htmlContent = "";
 
-  if (Array.isArray(obj)) {
-    htmlContent += renderArray(obj, md);
-  } else if (typeof obj === "object" && obj !== null) {
-    htmlContent += renderObjectProperties(obj, md, isRoot);
-  } else if (typeof obj === "string") {
-    htmlContent += md.render(obj);
-  } else {
-    htmlContent += obj.toString();
+  if (node instanceof Document) {
+    node = node.contents;
   }
 
-  if (isRoot && obj && typeof obj["Title"] === "string") {
-    htmlContent = `<h1>${md.render(obj["Title"])}</h1>` + htmlContent;
+  if (node instanceof YAMLSeq) {
+    htmlContent += renderArray(node.items, md);
+  } else if (node instanceof YAMLMap) {
+    htmlContent += renderObjectProperties(node, md, isRoot);
+  } else if (node instanceof Scalar) {
+    htmlContent += node ? md.render(node.value) : "";
+  } else {
+    htmlContent += node.toString();
   }
 
   return htmlContent;
 }
 
-// Renders an array of items to an HTML list.
 function renderArray(objArray: any[], md: MarkdownIt): string {
   return `<ul>${objArray.map((item) => renderItem(item, md)).join("")}</ul>`;
 }
 
-// Renders a single item within an array.
 function renderItem(item: any, md: MarkdownIt): string {
-  if (typeof item === "object" && !Array.isArray(item)) {
+  if (item instanceof YAMLMap) {
     return renderArrayObjectItem(item, md);
   } else {
     return `<li>${renderObject(item, md, false)}</li>`;
   }
 }
 
-// Renders an object item within an array to an HTML list item.
-function renderArrayObjectItem(
-  item: Record<string, any>,
-  md: MarkdownIt
-): string {
-  return Object.entries(item)
-    .map(([key, value]) => renderObjectEntry(key, value, md))
+function renderArrayObjectItem(map: YAMLMap, md: MarkdownIt): string {
+  let innerContent = map.items
+    .map((pair) => renderObjectEntry(pair, md))
     .join("");
+  return innerContent;
 }
 
-// Renders a key-value pair within an object.
-function renderObjectEntry(key: string, value: any, md: MarkdownIt): string {
-  const valueHtml = renderObject(value, md, false);
-  return Array.isArray(value)
-    ? `<li>${key}: ${valueHtml}</li>`
-    : `<li>${key}:<ul>${valueHtml}</ul></li>`;
-}
-
-// Renders the properties of an object to an HTML list.
 function renderObjectProperties(
-  obj: Record<string, any>,
+  map: YAMLMap,
   md: MarkdownIt,
   isRoot: boolean
 ): string {
-  let innerContent = Object.entries(obj)
-    .filter(([key]) => !(isRoot && key === "Title"))
-    .map(([key, value]) => `<li>${key}: ${renderObject(value, md, false)}</li>`)
+  let innerContent = map.items
+    .map((pair) => renderObjectEntry(pair, md))
     .join("");
 
   return isRoot ? innerContent : `<ul>${innerContent}</ul>`;
+}
+
+function renderObjectEntry(
+  pair: Pair<unknown, unknown>,
+  md: MarkdownIt
+): string {
+  const keyString = String(pair.key);
+  const valueHtml = renderObject(pair.value, md, false);
+  return `<li>${keyString}: ${valueHtml}</li>`;
 }
 
 // This method is called when your extension is deactivated
