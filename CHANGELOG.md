@@ -4,6 +4,7 @@
 
 ### Added
 
+* ✨ feat: Panel can auto scroll with document.
 * ✨ feat: improve header rendering
 * ✨ feat: optimize render for table
 * 🦄 refactor: improve the readability of rendering code
