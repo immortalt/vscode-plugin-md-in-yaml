@@ -1,5 +1,8 @@
 # Change Log
 
+## [0.0.5] - 2023-11-23
+- 🐞 Fixed excessive rendering points on the left side of the list.
+
 ## [0.0.4] - 2023-11-22
 - Change the README.md.
 

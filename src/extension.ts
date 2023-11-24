@@ -17,23 +17,37 @@ export function activate(context: vscode.ExtensionContext) {
     if (editor) {
       const document = editor.document;
       const fileName = path.basename(document.fileName);
+
+      // Calculate the current scroll percentage
+      const firstVisibleLine = editor.visibleRanges[0].start.line;
+      const totalLines = document.lineCount;
+      const scrollPercentage = firstVisibleLine / totalLines;
+
       if (currentPanel) {
-        // If a panel is already open, reveal it and update the content
         currentPanel.reveal();
         updateWebviewContent(document, currentPanel, fileName, md);
+        // Send the current scroll position to the preview window
+        currentPanel.webview.postMessage({
+          type: "scroll",
+          percentage: scrollPercentage,
+        });
       } else {
-        // Otherwise, create a new preview panel
         currentPanel = vscode.window.createWebviewPanel(
           "yamlPreview",
           "YAML Preview",
           vscode.ViewColumn.Beside,
           {
+            enableScripts: true,
             retainContextWhenHidden: true,
           }
         );
         updateWebviewContent(document, currentPanel, fileName, md);
+        // Send the current scroll position to the preview window
+        currentPanel.webview.postMessage({
+          type: "scroll",
+          percentage: scrollPercentage,
+        });
 
-        // Dispose of the panel when it is closed
         currentPanel.onDidDispose(() => {
           currentPanel = undefined;
         });
@@ -70,6 +84,24 @@ export function activate(context: vscode.ExtensionContext) {
       }
     })
   );
+
+  // Add a listener in the activate function to monitor changes in the visible range of the editor
+  vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
+    if (event.textEditor === vscode.window.activeTextEditor) {
+      // Calculate the scroll percentage based on the first visible line in the editor
+      const firstVisibleLine = event.visibleRanges[0].start.line;
+      const totalLines = event.textEditor.document.lineCount;
+      const scrollPercentage = firstVisibleLine / totalLines;
+
+      // Send the scroll position message if the preview panel is open
+      if (currentPanel) {
+        currentPanel.webview.postMessage({
+          type: "scroll",
+          percentage: scrollPercentage,
+        });
+      }
+    }
+  });
 }
 
 function updateWebviewContent(
@@ -103,9 +135,20 @@ function getWebviewContent(content: any, md: MarkdownIt): string {
       h1, h2, h3, h4, h5 { margin: 0; margin-top: 4px; margin-bottom: 4px; }
   </style>
   `;
+  const script = `<script>
+  // Listen for messages sent from the VS Code extension
+  window.addEventListener('message', event => {
+    console.log(event);
+    const message = event.data;
+    // Adjust the scroll position of the preview page based on the received scroll percentage
+    if (message.type === 'scroll') {
+      window.scrollTo(0, document.body.scrollHeight * message.percentage);
+    }
+  });
+</script>`;
   const body = `<ul>${renderObject(content, md)}</ul>`;
   console.log(body);
-  return `<html><head>${style}</head><body>${body}</body></html>`;
+  return `<html><head>${script}${style}</head><body>${body}</body></html>`;
 }
 
 function renderObject(
