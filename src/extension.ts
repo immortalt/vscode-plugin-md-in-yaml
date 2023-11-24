@@ -132,14 +132,21 @@ function getWebviewContent(content: any, md: MarkdownIt): string {
       dd { margin: 1px 0 2px 16px; }
       ul, ol { margin: 2px 0 2px 8px; padding-left: 20px; }
       li { margin: 0.5px 0; }
-      p { margin: 0; margin-top: 4px; }
-      h1, h2, h3, h4, h5 { margin: 0; margin-top: 4px; margin-bottom: 4px; }
+      p { margin: 4px 0; }
+      a { margin: 4px 0; }
+      h1, h2, h3, h4, h5 { margin: 4px 0; }
+      table {
+        border-collapse: collapse;
+      }
+      td, th {
+          border: 1px solid; 
+          padding: 8px;
+      }
   </style>
   `;
   const script = `<script>
   // Listen for messages sent from the VS Code extension
   window.addEventListener('message', event => {
-    console.log(event);
     const message = event.data;
     // Adjust the scroll position of the preview page based on the received scroll percentage
     if (message.type === 'scroll') {
@@ -148,7 +155,6 @@ function getWebviewContent(content: any, md: MarkdownIt): string {
   });
 </script>`;
   const body = `<ul>${renderObject(content, md)}</ul>`;
-  console.log(body);
   return `<html><head>${script}${style}</head><body>${body}</body></html>`;
 }
 
