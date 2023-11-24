@@ -63,6 +63,8 @@
   },
   "dependencies": {
     "@types/markdown-it": "^13.0.7",
-    "markdown-it": "^13.0.2"
+    "@types/yaml": "^1.9.7",
+    "markdown-it": "^13.0.2",
+    "yaml": "^2.3.4"
   }
 }
