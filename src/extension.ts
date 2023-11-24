@@ -25,7 +25,6 @@ export function activate(context: vscode.ExtensionContext) {
       const scrollPercentage = firstVisibleLine / totalLines;
 
       if (currentPanel) {
-        currentPanel.reveal();
         updateWebviewContent(document, currentPanel, fileName, md);
         // Send the current scroll position to the preview window
         currentPanel.webview.postMessage({
