@@ -151,55 +151,75 @@ function getWebviewContent(content: any, md: MarkdownIt): string {
   return `<html><head>${script}${style}</head><body>${body}</body></html>`;
 }
 
+// Renders an object to an HTML string.
 function renderObject(
   obj: any,
   md: MarkdownIt,
   isRoot: boolean = true
 ): string {
   let htmlContent = "";
+
   if (Array.isArray(obj)) {
-    htmlContent += `<ul>${obj
-      .map((item) => {
-        if (typeof item === "object" && !Array.isArray(item)) {
-          // Handle object type array elements
-          return Object.entries(item)
-            .map(([key, value]) => {
-              const valueHtml = renderObject(value, md, false);
-              // If the value is an array, do not nest <ul>, directly use valueHtml
-              if (Array.isArray(value)) {
-                return `<li>${key}: ${valueHtml}</li>`;
-              } else {
-                return `<li>${key}:<ul>${valueHtml}</ul></li>`;
-              }
-            })
-            .join("");
-        } else {
-          // Handle non-object type array elements
-          return `<li>${renderObject(item, md, false)}</li>`;
-        }
-      })
-      .join("")}</ul>`;
+    htmlContent += renderArray(obj, md);
   } else if (typeof obj === "object" && obj !== null) {
-    // Handle object types
-    let innerContent = Object.entries(obj)
-      .filter(([key]) => !(isRoot && key === "Title"))
-      .map(([key, value]) => {
-        const valueHtml = renderObject(value, md, false);
-        return `<li>${key}: ${valueHtml}</li>`;
-      })
-      .join("");
-    htmlContent = isRoot ? innerContent : `<ul>${innerContent}</ul>`;
+    htmlContent += renderObjectProperties(obj, md, isRoot);
   } else if (typeof obj === "string") {
-    // Handle string types
     htmlContent += md.render(obj);
   } else {
-    // Handle other types
     htmlContent += obj.toString();
   }
+
   if (isRoot && obj && typeof obj["Title"] === "string") {
     htmlContent = `<h1>${md.render(obj["Title"])}</h1>` + htmlContent;
   }
+
   return htmlContent;
+}
+
+// Renders an array of items to an HTML list.
+function renderArray(objArray: any[], md: MarkdownIt): string {
+  return `<ul>${objArray.map((item) => renderItem(item, md)).join("")}</ul>`;
+}
+
+// Renders a single item within an array.
+function renderItem(item: any, md: MarkdownIt): string {
+  if (typeof item === "object" && !Array.isArray(item)) {
+    return renderArrayObjectItem(item, md);
+  } else {
+    return `<li>${renderObject(item, md, false)}</li>`;
+  }
+}
+
+// Renders an object item within an array to an HTML list item.
+function renderArrayObjectItem(
+  item: Record<string, any>,
+  md: MarkdownIt
+): string {
+  return Object.entries(item)
+    .map(([key, value]) => renderObjectEntry(key, value, md))
+    .join("");
+}
+
+// Renders a key-value pair within an object.
+function renderObjectEntry(key: string, value: any, md: MarkdownIt): string {
+  const valueHtml = renderObject(value, md, false);
+  return Array.isArray(value)
+    ? `<li>${key}: ${valueHtml}</li>`
+    : `<li>${key}:<ul>${valueHtml}</ul></li>`;
+}
+
+// Renders the properties of an object to an HTML list.
+function renderObjectProperties(
+  obj: Record<string, any>,
+  md: MarkdownIt,
+  isRoot: boolean
+): string {
+  let innerContent = Object.entries(obj)
+    .filter(([key]) => !(isRoot && key === "Title"))
+    .map(([key, value]) => `<li>${key}: ${renderObject(value, md, false)}</li>`)
+    .join("");
+
+  return isRoot ? innerContent : `<ul>${innerContent}</ul>`;
 }
 
 // This method is called when your extension is deactivated
