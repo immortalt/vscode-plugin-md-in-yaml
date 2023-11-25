@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.0.8] - 2023-11-24
+
+* 📃 docs: update readme
+
 ## [0.0.7] - 2023-11-24
 
 * 🐞 fix: remove unnecessary panel reveal
